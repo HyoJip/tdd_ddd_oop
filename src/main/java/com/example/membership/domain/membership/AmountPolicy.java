@@ -15,7 +15,7 @@ public class AmountPolicy extends MileagePolicy {
   }
 
   @Override
-  protected long getMileagePoint(long price) {
+  protected Long getMileagePoint(Long price) {
     return price - this.amount;
   }
 }

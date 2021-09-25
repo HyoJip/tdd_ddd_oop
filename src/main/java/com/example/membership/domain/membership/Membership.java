@@ -55,7 +55,8 @@ public abstract class Membership {
     this.mileagePolicy = mileagePolicy;
   }
 
-  public long collectMileage(Payment payment) {
-    return this.mileagePolicy.calculateMileage(payment);
+  public void collectMileage(Payment payment) {
+    this.point = this.mileagePolicy.calculateMileage(payment);
   }
+
 }

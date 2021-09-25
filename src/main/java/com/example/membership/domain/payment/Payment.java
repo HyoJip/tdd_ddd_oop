@@ -1,6 +1,5 @@
 package com.example.membership.domain.payment;
 
-import com.example.membership.domain.membership.Orderer;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -11,12 +10,13 @@ import java.time.LocalDateTime;
 public class Payment {
 
   private final Orderer orderer;
-  private final long price;
+  private final Long price;
   private final LocalDateTime when;
 
-  public Payment(Orderer orderer, long price) {
+  public Payment(Orderer orderer, Long price) {
     this.orderer = orderer;
     this.price = price;
     this.when = LocalDateTime.now();
   }
+
 }

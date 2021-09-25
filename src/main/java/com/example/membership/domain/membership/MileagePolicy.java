@@ -15,10 +15,10 @@ public abstract class MileagePolicy {
     this.condition = condition;
   }
 
-  public long calculateMileage(Payment payment) {
+  public Long calculateMileage(Payment payment) {
     Preconditions.checkState(!this.condition.isSatisfiedBy(payment), "check mileage condition");
     return this.getMileagePoint(payment.getPrice());
   }
 
-  protected abstract long getMileagePoint(long price);
+  protected abstract Long getMileagePoint(Long price);
 }

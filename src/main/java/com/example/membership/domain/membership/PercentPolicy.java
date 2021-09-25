@@ -4,7 +4,7 @@ public class PercentPolicy extends MileagePolicy {
 
   private double percent;
 
-  protected PercentPolicy(double percent) {
+  public PercentPolicy(double percent) {
     super();
     this.percent = percent;
   }
@@ -15,7 +15,7 @@ public class PercentPolicy extends MileagePolicy {
   }
 
   @Override
-  protected long getMileagePoint(long price) {
+  protected Long getMileagePoint(Long price) {
     Double calculatedPoint = price * (1 + percent);
     return calculatedPoint.longValue();
   }

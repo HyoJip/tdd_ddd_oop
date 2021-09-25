@@ -55,15 +55,27 @@ public class MembershipController {
     @PathVariable Long ownerId,
     @PathVariable Long membershipId
     ) {
-
-    if (loggedUserId != ownerId) {
-      throw new PermissionDeniedException(String.format("Not allowed : %d != %d", loggedUserId, ownerId));
-    };
+    if (loggedUserId != ownerId) throw new PermissionDeniedException(String.format("Not allowed : %d != %d", loggedUserId, ownerId));
 
     this.membershipService.cancelMembership(ownerId, membershipId);
     return ApiResult.ok(
       GeneralResponse.of(
         String.format("success: Deleting the membership = {membershipId: %s, userId: %s}", membershipId, ownerId)
+      )
+    );
+  }
+
+  @PatchMapping("/collect")
+  public ApiResult<PointCollectingResult> collectPoint(
+    @RequestHeader(USER_ID_HEADER) Long userId,
+    @RequestBody PointCollectingRequest pointRequest
+  ) {
+    if (userId != pointRequest.getOrdererId())
+      throw new PermissionDeniedException(String.format("Not allowed : %d != %d", userId, pointRequest.getOrdererId()));
+
+    return ApiResult.ok(
+      new PointCollectingResult(
+        this.membershipService.accumulate(userId, pointRequest.toPayment())
       )
     );
   }

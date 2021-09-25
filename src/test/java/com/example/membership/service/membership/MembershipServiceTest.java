@@ -6,6 +6,9 @@ import com.example.membership.controller.membership.MembershipSignupResponse;
 import com.example.membership.domain.membership.KakaoMembership;
 import com.example.membership.domain.membership.Membership;
 import com.example.membership.domain.membership.MembershipType;
+import com.example.membership.domain.membership.PercentPolicy;
+import com.example.membership.domain.payment.Orderer;
+import com.example.membership.domain.payment.Payment;
 import com.example.membership.repository.membership.MembershipRepository;
 import com.example.membership.service.memebership.MembershipService;
 import com.example.membership.utils.MessageUtils;
@@ -19,7 +22,6 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.support.MessageSourceAccessor;
 import org.springframework.context.support.ReloadableResourceBundleMessageSource;
-import org.springframework.context.support.ResourceBundleMessageSource;
 
 import javax.persistence.EntityNotFoundException;
 import java.util.List;
@@ -201,6 +203,53 @@ class MembershipServiceTest {
     assertThatThrownBy(() -> this.membershipService.cancelMembership(kakaoMembership.getId(), 999L))
       .isInstanceOf(EntityUnauthorizedException.class)
       .hasMessage("Not authorized: It's not same owner(1 != 999)");
+  }
+
+  @Test
+  @DisplayName("[멤버쉽적립] 본인 결제가 아닌 경우 예외 발생")
+  void accumulateMembership_whenPaymentIsNotOwn_throwException() {
+    // given
+    Long userId = 1L;
+    Payment payment = new Payment(new Orderer(userId, 1L), 100_000L);
+
+    // when
+    // then
+    assertThatThrownBy(() -> this.membershipService.accumulate(userId + 1, payment))
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessage("LoggedUserId must be provided and Payment ordererId must be same with.");
+  }
+
+  @Test
+  @DisplayName("[멤버쉽적립] 결제 정보가 널일 경우 예외 발생")
+  void accumulateMembership_whenPaymentIsNull_throwException() {
+    // given
+    Long userId = 1L;
+
+    // when
+    // then
+    assertThatThrownBy(() -> this.membershipService.accumulate(userId, null))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessage("Payment must be provided.");
+  }
+
+  @Test
+  @DisplayName("[멤버쉽적립] 유효한 요청일 경우 멤버십 포인트를 적립한다.")
+  void accumulateMembership_whenRequestIsValid_accumulatePoint() {
+    // given
+    Long userId = 1L;
+    long membershipId = 1L;
+    Payment payment = new Payment(new Orderer(userId, membershipId), 100_000L);
+    Membership kakaoMembership = TestUtils.createKakaoMembership(userId, new PercentPolicy(0.01));
+    when(this.membershipRepository.findById(membershipId)).thenReturn(Optional.of(kakaoMembership));
+    when(this.membershipRepository.save(any(Membership.class))).thenReturn(
+      KakaoMembership.builder().id(membershipId).userId(userId).point(101_000L).build());
+
+    // when
+    this.membershipService.accumulate(userId, payment);
+
+    // then
+    Membership membership = this.membershipService.getMembership(membershipId);
+    assertThat(membership.getPoint()).isEqualTo(101_000L);
   }
 
 }

@@ -5,6 +5,7 @@ import com.example.membership.common.MembershipConst;
 import com.example.membership.common.exceptions.PermissionDeniedException;
 import com.example.membership.controller.ApiStatus;
 import com.example.membership.domain.membership.*;
+import com.example.membership.domain.payment.Payment;
 import com.example.membership.service.memebership.MembershipService;
 import com.example.membership.utils.MessageUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -240,7 +241,6 @@ class MembershipControllerTest {
         Matchers.containsString(MessageUtils.getMessage(PermissionDeniedException.MESSAGE_DETAIL).replace("{0}", ""))));
   }
 
-
   @Test
   @DisplayName("[회원 멤버쉽 삭제] 삭제 성공시 200(200) 받음")
   void deleteMembership_whenRequestIsValid_receiveOk() throws Exception {
@@ -261,7 +261,71 @@ class MembershipControllerTest {
         Matchers.containsString("success: Deleting the membership")));
   }
 
+  @Test
+  @DisplayName("[회원 멤버쉽 적립] 인증 실패할 경우 200(400) 받음")
+  void accumulateMembership_whenNoAuthentication_receiveBadRequest() throws Exception {
+    // given
+    Long userId = null;
+    PointCollectingRequest pointCollectRequest = TestUtils.createPointCollectRequest(1L, 1L, 100_000L);
+
+    // when
+    // then
+    patchMembership(userId, pointCollectRequest)
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.error.status").value("400"));
+  }
+
+  @Test
+  @DisplayName("[회원 멤버쉽 적립] 인증 불일치할 경우 200(400) 받음")
+  void accumulateMembership_whenNotAuthenticated_receiveBadRequest() throws Exception {
+    // given
+    Long userId = 2L;
+    PointCollectingRequest pointCollectRequest = TestUtils.createPointCollectRequest(1L, 1L, 100_000L);
+
+    // when
+    // then
+    patchMembership(userId, pointCollectRequest)
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.error.status").value(403));
+  }
+
+  @Test
+  @DisplayName("[회원 멤버쉽 적립] 유효한 요청일 경우 200(200) 받음")
+  void accumulateMembership_whenRequestIsValid_receiveOk() throws Exception {
+    // given
+    Long userId = 1L;
+    PointCollectingRequest pointCollectRequest = TestUtils.createPointCollectRequest(1L, 1L, 100_000L);
+    when(this.membershipService.accumulate(eq(userId), any(Payment.class))).thenReturn(new MembershipDTO(TestUtils.createKakaoMembership(userId, null)));
+
+    // when
+    // then
+    patchMembership(userId, pointCollectRequest)
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.error").doesNotHaveJsonPath())
+      .andExpect(jsonPath("$.success").value(true));
+  }
+
+  @Test
+  @DisplayName("[회원 멤버쉽 적립] 유효한 요청일 경우 포인트 적립 결과 받음")
+  void accumulateMembership_whenRequestIsValid_receivePointCollectingResult() throws Exception {
+    // given
+    Long userId = 1L;
+    PointCollectingRequest pointCollectRequest = TestUtils.createPointCollectRequest(1L, 1L, 100_000L);
+    MembershipDTO result = MembershipDTO.builder().id(1L).userId(userId).point(101_000L).build();
+    when(this.membershipService.accumulate(eq(userId), any(Payment.class)))
+      .thenReturn(result);
+
+    // when
+    // then
+    patchMembership(userId, pointCollectRequest)
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.response.ordererId").value(result.getUserId()))
+      .andExpect(jsonPath("$.response.membershipId").value(result.getId()))
+      .andExpect(jsonPath("$.response.totalPoint").value(result.getPoint()));
+  }
+
   // ****************************************************************** Method
+
   private ResultActions postSignup(Long userId, String content) throws Exception {
     return mockMvc
         .perform(
@@ -271,7 +335,6 @@ class MembershipControllerTest {
               .content(content)
         );
   }
-
   private ResultActions getUserAllMembership(Long userId) throws Exception {
     return mockMvc
       .perform(
@@ -295,6 +358,16 @@ class MembershipControllerTest {
       delete("/api/v1/membership/" + ownerId + "/"+ membershipId)
         .header(MembershipConst.USER_ID_HEADER, ObjectUtils.defaultIfNull(loggedUserId, ""))
         .contentType(MediaType.APPLICATION_JSON)
+    );
+  }
+
+  private ResultActions patchMembership(Long userId, PointCollectingRequest pointCollectRequest) throws Exception {
+    return mockMvc.perform(
+      patch("/api/v1/membership/collect")
+        .contentType(MediaType.APPLICATION_JSON)
+        .header(MembershipConst.USER_ID_HEADER, ObjectUtils.defaultIfNull(userId, ""))
+        .content(om.writeValueAsString(pointCollectRequest)
+        )
     );
   }
 }
