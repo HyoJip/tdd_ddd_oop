@@ -1,5 +1,6 @@
 package com.example.membership.controller;
 
+import com.example.membership.common.exceptions.PermissionDeniedException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -35,6 +36,12 @@ public class GeneralExceptionHandler {
   @ExceptionHandler({EntityNotFoundException.class})
   public ApiResult<?> handleServiceException(Exception e) {
     return this.newResponse(e, ApiStatus.SERVICE_ERROR.code());
+  }
+
+  @ResponseStatus(HttpStatus.OK)
+  @ExceptionHandler({PermissionDeniedException.class})
+  public ApiResult<?> handlePermissionException(Exception e) {
+    return this.newResponse(e, ApiStatus.PERMISSION_ERROR.code());
   }
 
   @ResponseStatus(HttpStatus.OK)

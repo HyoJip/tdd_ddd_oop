@@ -1,10 +1,10 @@
 package com.example.membership.service.memebership;
 
+import com.example.membership.common.exceptions.EntityUnauthorizedException;
 import com.example.membership.controller.membership.MembershipSignupResponse;
 import com.example.membership.domain.membership.Membership;
 import com.example.membership.domain.membership.MembershipType;
 import com.example.membership.repository.membership.MembershipRepository;
-import com.google.common.base.Preconditions;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +12,8 @@ import javax.persistence.DiscriminatorValue;
 import javax.persistence.EntityNotFoundException;
 import java.util.List;
 
-import static com.google.common.base.Preconditions.*;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 @Service
 @RequiredArgsConstructor
@@ -61,5 +62,19 @@ public class MembershipService {
         String.format("The Membership[userId=%d, membershipType=%s] can not found.", userId, type.name())
         )
       );
+  }
+
+  public void cancelMembership(long membershipId, long userId) {
+    Membership membership = this.membershipRepository.findById(membershipId)
+      .orElseThrow(() -> new EntityNotFoundException(
+          String.format("The Membership[id=%d] can not found.", membershipId)
+        )
+      );
+
+    if (membership.getUserId() != userId) {
+      throw new EntityUnauthorizedException(String.format("It's not same owner(%d != %d)", membership.getUserId(), userId));
+    }
+
+    this.membershipRepository.deleteById(membershipId);
   }
 }

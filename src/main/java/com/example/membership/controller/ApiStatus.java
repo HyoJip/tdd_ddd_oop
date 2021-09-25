@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public enum ApiStatus {
-  SERVICE_ERROR(900);
+  SERVICE_ERROR(900),
+  AUTHENTICATION_ERROR(401),
+  PERMISSION_ERROR(403);
 
   private final int statusCode;
 

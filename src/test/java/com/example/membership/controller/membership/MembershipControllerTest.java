@@ -2,18 +2,24 @@ package com.example.membership.controller.membership;
 
 import com.example.membership.TestUtils;
 import com.example.membership.common.MembershipConst;
+import com.example.membership.common.exceptions.PermissionDeniedException;
 import com.example.membership.controller.ApiStatus;
 import com.example.membership.domain.membership.*;
 import com.example.membership.service.memebership.MembershipService;
+import com.example.membership.utils.MessageUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.ObjectUtils;
+import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsCollectionWithSize;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.support.MessageSourceAccessor;
+import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -21,12 +27,11 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import javax.persistence.EntityNotFoundException;
 import java.util.List;
+import java.util.Locale;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,6 +46,15 @@ class MembershipControllerTest {
 
   @MockBean
   MembershipService membershipService;
+
+  @BeforeEach
+  void setup() {
+    ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
+    messageSource.setBasename("/i18n/messages");
+    messageSource.setDefaultEncoding("UTF-8");
+    messageSource.setDefaultLocale(Locale.KOREA);
+    MessageUtils.setMessageSourceAccessor(new MessageSourceAccessor(messageSource));
+  }
 
   @Test
   @DisplayName("[멤버쉽가입] 헤더에 회원 아이디가 없을 경우 서비스에러 200(400) 받는다.")
@@ -189,7 +203,63 @@ class MembershipControllerTest {
       .andExpect(jsonPath("$.error.status").value(ApiStatus.SERVICE_ERROR.code()));
   }
 
+  @Test
+  @DisplayName("[회원 멤버쉽 삭제] 회원 인증이 유효하지 않을 경우 200(400) 받음")
+  void deleteMembership_whenCertificationIsNotValid_receiveBadRequest() throws Exception {
+    // given
+    Long userId = 1L;
+    Membership membership = TestUtils.createKakaoMembership(userId, null);
+    Long membershipId = membership.getId();
 
+    doNothing().when(this.membershipService).cancelMembership(membershipId, userId);
+
+    // when
+    // then
+    this.deleteMembership(userId, membershipId, null)
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.error.status").value(HttpStatus.BAD_REQUEST.value()));
+  }
+
+  @Test
+  @DisplayName("[회원 멤버쉽 삭제] 삭제하려는 멤버쉽 회원과 로그인한 회원이 일치하지 않을 경우 200(403) 받음")
+  void deleteMembership_whenCertificationIsNotValid_receiveForbidden() throws Exception {
+    // given
+    Long userId = 1L;
+    Membership membership = TestUtils.createKakaoMembership(userId, null);
+    Long membershipId = membership.getId();
+
+    doNothing().when(this.membershipService).cancelMembership(membershipId, userId);
+
+    // when
+    // then
+    this.deleteMembership(userId, membershipId, userId + 1)
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.error.status").value(HttpStatus.FORBIDDEN.value()))
+      .andExpect(jsonPath("$.success").value(false))
+      .andExpect(jsonPath("$.error.message",
+        Matchers.containsString(MessageUtils.getMessage(PermissionDeniedException.MESSAGE_DETAIL).replace("{0}", ""))));
+  }
+
+
+  @Test
+  @DisplayName("[회원 멤버쉽 삭제] 삭제 성공시 200(200) 받음")
+  void deleteMembership_whenRequestIsValid_receiveOk() throws Exception {
+    // given
+    Long userId = 1L;
+    Membership membership = TestUtils.createKakaoMembership(userId, null);
+    Long membershipId = membership.getId();
+
+    doNothing().when(this.membershipService).cancelMembership(membershipId, userId);
+
+    // when
+    // then
+    this.deleteMembership(userId, membershipId, userId)
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.error").doesNotHaveJsonPath())
+      .andExpect(jsonPath("$.success").value(true))
+      .andExpect(jsonPath("$.response.message",
+        Matchers.containsString("success: Deleting the membership")));
+  }
 
   // ****************************************************************** Method
   private ResultActions postSignup(Long userId, String content) throws Exception {
@@ -217,6 +287,14 @@ class MembershipControllerTest {
         .header(MembershipConst.USER_ID_HEADER, ObjectUtils.defaultIfNull(userId, ""))
         .contentType(MediaType.APPLICATION_JSON)
         .param("type", membershipType)
+    );
+  }
+
+  private ResultActions deleteMembership(Long ownerId, Long membershipId, Long loggedUserId) throws Exception {
+    return mockMvc.perform(
+      delete("/api/v1/membership/" + ownerId + "/"+ membershipId)
+        .header(MembershipConst.USER_ID_HEADER, ObjectUtils.defaultIfNull(loggedUserId, ""))
+        .contentType(MediaType.APPLICATION_JSON)
     );
   }
 }

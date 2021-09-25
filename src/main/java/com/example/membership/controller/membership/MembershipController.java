@@ -1,5 +1,6 @@
 package com.example.membership.controller.membership;
 
+import com.example.membership.common.exceptions.PermissionDeniedException;
 import com.example.membership.controller.ApiResult;
 import com.example.membership.domain.membership.MembershipType;
 import com.example.membership.service.memebership.MembershipService;
@@ -45,6 +46,25 @@ public class MembershipController {
   ) {
     return ApiResult.ok(
       new MembershipDTO(this.membershipService.getUserMembership(userId, membershipType))
+    );
+  }
+
+  @DeleteMapping("/{ownerId}/{membershipId}")
+  public ApiResult<GeneralResponse> deleteMembership(
+    @RequestHeader(USER_ID_HEADER) Long loggedUserId,
+    @PathVariable Long ownerId,
+    @PathVariable Long membershipId
+    ) {
+
+    if (loggedUserId != ownerId) {
+      throw new PermissionDeniedException(String.format("Not allowed : %d != %d", loggedUserId, ownerId));
+    };
+
+    this.membershipService.cancelMembership(ownerId, membershipId);
+    return ApiResult.ok(
+      GeneralResponse.of(
+        String.format("success: Deleting the membership = {membershipId: %s, userId: %s}", membershipId, ownerId)
+      )
     );
   }
 }

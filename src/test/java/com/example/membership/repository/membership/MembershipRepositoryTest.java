@@ -1,5 +1,6 @@
 package com.example.membership.repository.membership;
 
+import com.example.membership.TestUtils;
 import com.example.membership.domain.membership.AmountPolicy;
 import com.example.membership.domain.membership.KakaoMembership;
 import com.example.membership.domain.membership.Membership;
@@ -23,7 +24,7 @@ class MembershipRepositoryTest {
   @DisplayName("[saveMembership] 멤버쉽 가입을 할 수 있다.")
   void saveMembership_whenSignupRequestIsValid_saveInDB() {
     // given
-    Membership membership = new KakaoMembership(1L, new AmountPolicy(1_000L));
+    Membership membership = TestUtils.createKakaoMembership(1L, new AmountPolicy(1_000L));
 
     // when
     Membership inDB = this.membershipRepository.save(membership);
@@ -40,8 +41,8 @@ class MembershipRepositoryTest {
   @DisplayName("[saveMembership] 한 회원은 여러 멤버쉽을 동시에 가입할 수 있다.")
   void saveMembership_whenMembershipRequestIsValid_canSignupMultipleMembership() {
     // given
-    Membership kakaoMembership = new KakaoMembership(1L, new AmountPolicy(1_000L));
-    Membership naverMembership = new NaverMembership(1L, new AmountPolicy(100L));
+    Membership kakaoMembership = TestUtils.createKakaoMembership(1L, null);
+    Membership naverMembership = TestUtils.createNaverMembership(1L, null);
 
     // when
     Membership kakaoInDB = this.membershipRepository.save(kakaoMembership);
@@ -55,8 +56,8 @@ class MembershipRepositoryTest {
   @DisplayName("[findAllByUserId] 회원 아이디로 멤버쉽을 조회할 수 있다.")
   void findAllByUserId_whenUserIdIsProvided_receiveMemberships() {
     // given
-    Membership kakaoMembership = new KakaoMembership(1L, new AmountPolicy(1_000L));
-    Membership naverMembership = new NaverMembership(1L, new AmountPolicy(100L));
+    Membership kakaoMembership = TestUtils.createKakaoMembership(1L, null);
+    Membership naverMembership = TestUtils.createNaverMembership(1L, null);
     this.membershipRepository.save(kakaoMembership);
     this.membershipRepository.save(naverMembership);
 
@@ -79,9 +80,9 @@ class MembershipRepositoryTest {
 
   @Test
   @DisplayName("[findByUserIdAndDtype] 회원 아이디와 멤버쉽 종류로 조회할 수 있다.")
-  void findByUserIdAndDtype_whenUserIdAndDtypeIsProvided_receiveTheMembership() {
+  void findByUserIdAndDtype_whenUserIdAndTypeIsProvided_receiveTheMembership() {
     // given
-    Membership kakaoMembership = new KakaoMembership(1L, new AmountPolicy(1_000L));
+    Membership kakaoMembership = TestUtils.createKakaoMembership(1L, null);
     this.membershipRepository.save(kakaoMembership);
 
     // when
@@ -89,5 +90,19 @@ class MembershipRepositoryTest {
 
     //then
     assertThat(membership.getUserId()).isEqualTo(kakaoMembership.getUserId());
+  }
+
+  @Test
+  @DisplayName("[deleteMembership] 멤버쉽 아이디로 멤버쉽을 삭제할 수 있다.")
+  void deleteMembership_whenMembershipIdIsProvided_canDeleteMembershipInDB() {
+    // given
+    Membership kakaoMembership = TestUtils.createKakaoMembership(1L, null);
+    Membership inDB = this.membershipRepository.save(kakaoMembership);
+
+    // when
+    this.membershipRepository.deleteById(inDB.getId());
+
+    // then
+    assertThat(this.membershipRepository.findAll().size()).isEqualTo(0);
   }
 }

@@ -2,6 +2,8 @@ package com.example.membership.domain.membership;
 
 import com.example.membership.common.MembershipConst;
 import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.apache.commons.lang3.ObjectUtils;
 
 import javax.persistence.DiscriminatorValue;
@@ -12,6 +14,8 @@ import java.time.LocalDateTime;
 
 import static com.example.membership.common.MembershipConst.NAVER_MEMBERSHIP_NAME;
 
+@NoArgsConstructor
+@ToString(callSuper = true)
 @Entity
 @DiscriminatorValue(NAVER_MEMBERSHIP_NAME)
 public class NaverMembership extends Membership {

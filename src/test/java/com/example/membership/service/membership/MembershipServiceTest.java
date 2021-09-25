@@ -1,13 +1,15 @@
 package com.example.membership.service.membership;
 
 import com.example.membership.TestUtils;
+import com.example.membership.common.exceptions.EntityUnauthorizedException;
 import com.example.membership.controller.membership.MembershipSignupResponse;
-import com.example.membership.domain.membership.AmountPolicy;
 import com.example.membership.domain.membership.KakaoMembership;
 import com.example.membership.domain.membership.Membership;
 import com.example.membership.domain.membership.MembershipType;
 import com.example.membership.repository.membership.MembershipRepository;
 import com.example.membership.service.memebership.MembershipService;
+import com.example.membership.utils.MessageUtils;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +17,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.support.MessageSourceAccessor;
+import org.springframework.context.support.ReloadableResourceBundleMessageSource;
+import org.springframework.context.support.ResourceBundleMessageSource;
 
 import javax.persistence.EntityNotFoundException;
 import java.util.List;
@@ -33,6 +38,14 @@ class MembershipServiceTest {
 
   @InjectMocks
   MembershipService membershipService;
+
+  @BeforeEach
+  void setup() {
+    ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
+    messageSource.setBasename("/i18n/messages");
+    messageSource.setDefaultEncoding("UTF-8");
+    MessageUtils.setMessageSourceAccessor(new MessageSourceAccessor(messageSource));
+  }
 
   @Test
   @DisplayName("[멤버쉽가입] 중복된 멤버쉽 가입은 불가능하다.")
@@ -161,5 +174,33 @@ class MembershipServiceTest {
       .hasMessage("The Membership[userId=1, membershipType=KAKAO] can not found.");
   }
 
+  @Test
+  @DisplayName("[멤버쉽삭제] 멤버쉽 아이디가 없을 경우 예외 발생")
+  void deleteMembership_whenMembershipIsNotExist_throwException() {
+    // given
+    when(this.membershipRepository.findById(anyLong()))
+      .thenReturn(Optional.empty());
+
+    // when
+    // then
+    assertThatThrownBy(() -> this.membershipService.cancelMembership(1L, 1L))
+      .isInstanceOf(EntityNotFoundException.class)
+      .hasMessage("The Membership[id=1] can not found.");
+  }
+
+  @Test
+  @DisplayName("[멤버쉽삭제] 해당 멤버쉽이 본인 것이 아닐 경우 서비스 예외 발생")
+  void deleteMembership_whenMembershipIsNotOwn_throwException() {
+    // given
+    Membership kakaoMembership = TestUtils.createKakaoMembership(1L, null);
+    when(this.membershipRepository.findById(anyLong()))
+      .thenReturn(Optional.of(kakaoMembership));
+
+    // when
+    // then
+    assertThatThrownBy(() -> this.membershipService.cancelMembership(kakaoMembership.getId(), 999L))
+      .isInstanceOf(EntityUnauthorizedException.class)
+      .hasMessage("Not authorized: It's not same owner(1 != 999)");
+  }
 
 }
